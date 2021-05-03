@@ -2,7 +2,16 @@ html, body {
     height: 100%;
 }
 
-.about {
+nav {
+    background-color: #f9ebff !important;
+}
+
+.background {
     height: 100%;
     background-color: #f9ebff !important;
 }
+
+/* .no-highlight, .no-highlight:link, .no-highlight:hover, .no-highlight:active {
+    color: inherit !important;
+    text-decoration: none !important;
+} */
