@@ -14,6 +14,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// ***********
+// Data Struct
+// ***********
+
+type AuthFormData struct {
+	Header string
+	FormUrl string
+	ButtonText string
+	RedirectUrl string
+	RedirectText string
+}
+
 // ********
 // Handlers
 // ********
@@ -38,9 +50,15 @@ func loginHandler(
 	userCollection *mongo.Collection,
 ) {
     session, err := s.Get(r, "session")
-
+	loginData := AuthFormData{
+		"Log In",
+		"/login",
+		"Log In",
+		"/signup",
+		"Create an Account",
+	}
     if err != nil {
-		tmplMap["login.html"].ExecuteTemplate(w, "base", nil) 
+		tmplMap["authForm.html"].ExecuteTemplate(w, "base", loginData) 
 		// in case of error during 
 		// fetching session info, execute login template
     } else {
@@ -58,7 +76,7 @@ func loginHandler(
 					return
 				}
 			}
-			tmplMap["login.html"].ExecuteTemplate(w, "base", nil)
+			tmplMap["authForm.html"].ExecuteTemplate(w, "base", nil)
 			return
 		}
 		http.Redirect(w, r, "/contests", 302)
@@ -80,10 +98,21 @@ func signupHandler(
 		err := createNewUser(username, password, userCollection)
 		if err != nil {
 			http.Redirect(w, r, "/signup", 302)	
+			return
 		}
+		
 		http.Redirect(w, r, "/login", 302)
+		return
 	} else {
-		tmplMap["signup.html"].ExecuteTemplate(w, "base", nil)
+		signupData := AuthFormData{
+			"Create an Account",
+			"/signup",
+			"Sign Up",
+			"/login",
+			"Already have an account? Log in here",
+		}
+		tmplMap["authForm.html"].ExecuteTemplate(w, "base", signupData)
+		return
 	}
 }
 
@@ -96,6 +125,19 @@ func homeHandler(
 		http.Redirect(w, r, "/contests", 302)
 	}
 	http.Redirect(w, r, "/", 302)
+}
+
+func loginRequiredHandlerMixin(
+	w http.ResponseWriter,
+	r *http.Request,
+	s *sessions.CookieStore,
+) bool {
+	if !isLoggedIn(r, s){
+		log.Println("Not authorized for this request")
+		http.Redirect(w, r, "/login", 401)
+		return true
+	}
+	return false
 }
 
 
@@ -140,7 +182,6 @@ func createNewUser(username string, password string, userCollection *mongo.Colle
 		return errors.New("User ID already exists")
 	}
 	newUser := User{username, password}
-	fmt.Printf("%v\n", newUser)
 	_, insertErr := userCollection.InsertOne(context.TODO(), newUser)
 	if insertErr != nil {
 		return insertErr

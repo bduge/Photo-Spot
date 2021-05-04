@@ -4,6 +4,8 @@ html, body {
 
 nav {
     background-color: #f9ebff !important;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 .background {

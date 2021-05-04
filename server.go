@@ -15,34 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const (
-	OPEN = iota
-	VOTING
-	CONCLUDED
-)
 
-// User collection in Mongo
-type User struct {
-	Username string
-	Password string
-}
-
-// Contest collection in Mongo
-type Contest struct {
-	Name string
-	State int
-	Description string
-	Owner string
-}
-
-// ContestEntry collection in Mongo
-type ContestEntry struct {
-	ContestID string
-	ImagePath string
-	Title string
-	Votes int
-	Owner string
-}
 
 func getMongoClient() *mongo.Client {
 	// Use local db instance for demonstration purposes
@@ -64,14 +37,14 @@ func getMongoClient() *mongo.Client {
 
 func main() {
 	router := mux.NewRouter()
-
+	dbName := "photospot"
 	// Hardcoded secret key for demonstration only purposes
 	secretKey := "superdupersecret42"
 
 	// // MongoDB setup
 	client := getMongoClient()
-	userCollection := client.Database("photospot").Collection("users")
-
+	userCollection := client.Database(dbName).Collection("users")
+	contestCollection := client.Database(dbName).Collection("contests")
 
 	// // Setup cookie store for sessions
 	// // Authentication logic from:
@@ -85,17 +58,19 @@ func main() {
 	// Initialize templates
 	tmplMap := make(map[string]*template.Template)
 	tmplMap["index.html"] = template.Must(template.ParseFiles("static/index.html", "static/base.html"))
-	tmplMap["signup.html"] = template.Must(template.ParseFiles("static/signup.html", "static/base.html"))
-	tmplMap["login.html"] = template.Must(template.ParseFiles("static/login.html", "static/base.html"))
-	// tmplMap["authForm.html"] = template.Must(template.ParseFiles("static/login.html", "static/base.html"))
+	// tmplMap["signup.html"] = template.Must(template.ParseFiles("static/signup.html", "static/base.html"))
+	// tmplMap["login.html"] = template.Must(template.ParseFiles("static/login.html", "static/base.html"))
+	tmplMap["authForm.html"] = template.Must(template.ParseFiles("static/authForm.html", "static/base.html"))
+	tmplMap["contests.html"] = template.Must(template.ParseFiles("static/contests.html", "static/base.html"))
 	// tmplMap["index.html"] = template.Must(template.ParseFiles("static/index.html", "static/base.html"))
 
 	
-	// Routes
+	// Index route
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		tmplMap["index.html"].ExecuteTemplate(w, "base", nil)
 	}).Methods("GET")
 
+	// Authentication routes
 	router.HandleFunc("/signup", func(w http.ResponseWriter, r *http.Request) {
 		signupHandler(w, r, store, tmplMap, userCollection)
 	}).Methods("GET", "POST")
@@ -111,6 +86,22 @@ func main() {
 	router.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
 		homeHandler(w, r, store)
 	}).Methods("GET")
+
+
+	// Contest routes (authentication needed)
+	router.HandleFunc("/contests", func(w http.ResponseWriter, r *http.Request) {
+		if loginRequiredHandlerMixin(w, r, store) {
+			return
+		}
+		tmplMap["contests.html"].ExecuteTemplate(w, "base", nil)
+	}).Methods("GET")
+
+	router.HandleFunc("/create-contest", func(w http.ResponseWriter, r *http.Request) {
+		if loginRequiredHandlerMixin(w, r, store) {
+			return
+		}
+		createContestHandler(w, r, store, contestCollection)
+	}).Methods("GET", "POST")
 
 	fmt.Println("Server running")
 	http.ListenAndServe(":3000", router)
