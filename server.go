@@ -63,7 +63,11 @@ func main() {
 	tmplMap["authForm.html"] = template.Must(template.ParseFiles("static/authForm.html", "static/base.html"))
 	tmplMap["contests.html"] = template.Must(template.ParseFiles("static/contests.html", "static/base.html"))
 	tmplMap["createContest.html"] = template.Must(template.ParseFiles("static/createContest.html", "static/base.html"))
-	// tmplMap["index.html"] = template.Must(template.ParseFiles("static/index.html", "static/base.html"))
+	tmplMap["contestDetailOpen.html"] = template.Must(template.ParseFiles(
+		"static/contestDetailOpen.html",
+		"static/contestDetail.html",
+		"static/base.html",
+	))
 
 	
 	// Index route
@@ -95,8 +99,26 @@ func main() {
 		if loginRequiredHandlerMixin(w, r, store) {
 			return
 		}
-		tmplMap["contests.html"].ExecuteTemplate(w, "base", nil)
+		contestIndexHandler(w, r, store, tmplMap, contestCollection)
 	}).Methods("GET")
+
+	router.HandleFunc("/contests/{contestId}", func(w http.ResponseWriter, r *http.Request) {
+		if loginRequiredHandlerMixin(w, r, store) {
+			return
+		}
+		vars := mux.Vars(r)
+		contestId := vars["contestId"]
+		contestDetailHandler(w, r, store, tmplMap, contestCollection, contestId)
+	}).Methods("GET")
+
+	router.HandleFunc("/contests/{contestId}/submit", func(w http.ResponseWriter, r *http.Request) {
+		if loginRequiredHandlerMixin(w, r, store) {
+			return
+		}
+		vars := mux.Vars(r)
+		contestId := vars["contestId"]
+		contestPhotoSubmissionHandler(w, r, store, tmplMap, contestCollection, contestId)
+	}).Methods("POST")
 
 	router.HandleFunc("/create-contest", func(w http.ResponseWriter, r *http.Request) {
 		if loginRequiredHandlerMixin(w, r, store) {

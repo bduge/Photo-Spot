@@ -12,7 +12,28 @@
 <div class="background d-flex flex-column align-items-center">
     <h1>Contests</h1>
     <a href="/create-contest">
-        <button type="button"></button>
+        <button type="button" class="btn btn-dark">Create Your Own Photo Contest!</button>
     </a>
+    <div class="container mt-5">
+        <div class="row row-cols-3">
+            {{range .}}
+            <div class="col d-flex flex-column justify-content-between align-items-center text-center mb-4">
+                <div>
+                    <h3>{{.Name}}</h3>
+                    <h6 class="contest-state-text">{{.GetStateString}}</h6>
+                    <h6>
+                        <span>{{.FormatTime}}</span>
+                        -
+                        <span>{{.OwnerName}}</span>
+                    </h6>
+                </div>
+                <p>{{.Description}}</p>
+                <a href="/contests/{{.GetStringId}}">
+                    <button type="button" class="btn btn-outline-dark">View</button>
+                </a>
+            </div>
+            {{end}}
+        </div>
+    </div>
 </div>
 {{end}}

@@ -26,9 +26,29 @@ type Contest struct {
 	Name string `bson:"name"`
 	State int `bson:"state"`
 	Description string `bson:"description"`
-	Owner string `bson:"owner"`
+	OwnerId string `bson:"owner_id"`
+	OwnerName string `bson:"owner_name"`
 	TimeCreated time.Time `bson:"time_created"`
 }
+
+func (c Contest) FormatTime() string {
+	return c.TimeCreated.Format("Jan 2")
+}
+
+func (c Contest) GetStringId() string {
+	return c.Id.Hex()
+}
+
+func (c Contest) GetStateString() string {
+	if c.State == OPEN {
+		return "Accepting Submissions"
+	} else if c.State == VOTING {
+		return "Voting in Progress"
+	} else {
+		return "Voting Concluded"
+	}
+}
+
 
 // ContestEntry collection in Mongo
 type ContestEntry struct {

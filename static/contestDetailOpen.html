@@ -1,0 +1,11 @@
+{{define "contestDetailBody"}}
+
+<form action="/contests/{{.Id}}/submit" method="POST">
+    <div class="form-group">
+        <label for="img">Submit Entry to this contest. You may only make one submission.</label>
+        <input class="form-control-file" type="file" id="img" name="img" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-dark">Submit</button>
+</form>
+
+{{end}}
