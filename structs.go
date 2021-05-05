@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 // Enum types for contest state
 const (
@@ -11,21 +15,24 @@ const (
 
 // User collection in Mongo
 type User struct {
-	Username string
-	Password string
+	Id primitive.ObjectID `bson:"_id"`
+	Username string `bson:"username"`
+	Password string `bson:"password"`
 }
 
 // Contest collection in Mongo
 type Contest struct {
-	Name string
-	State int
-	Description string
-	Owner string
-	TimeCreated time.Time
+	Id primitive.ObjectID `bson:"_id"`
+	Name string `bson:"name"`
+	State int `bson:"state"`
+	Description string `bson:"description"`
+	Owner string `bson:"owner"`
+	TimeCreated time.Time `bson:"time_created"`
 }
 
 // ContestEntry collection in Mongo
 type ContestEntry struct {
+	Id primitive.ObjectID `bson:"_id"`
 	ContestID string
 	ImagePath string
 	Title string

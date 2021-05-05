@@ -1,3 +1,33 @@
 {{define "body"}}
+<nav class="container-fluid px-3 px-md-4">
+    <div class="row justify-content-between align-items-center">
+        <div>
+            <a href="/contests" class="nav-link">
+                <button class="btn btn-outline-dark">Back</button>
+            </a>
+        </div>
+        <div>
+            <form action="/logout" method="POST">
+                <button type="submit" class="btn btn-outline-dark">Log out</button>
+            </form>
+        </div>
+    </div>
+</nav>
 
+<div class="background d-flex justify-content-center align-items-center">
+    <div class="d-flex flex-column align-items-start">
+        <h1>Create Contest</h1>
+        <form class="wide-form" action="/create-contest" method="POST">
+            <div class="form-group">
+                <label for="contestnameInput">Contest Name</label>
+                <input type="text" class="form-control" id="contestnameInput" name="contestname">
+            </div>
+            <div class="form-group">
+                <label for="contestDescription">Description</label>
+                <textarea class="form-control" name="contestdescription" id="contestdescription" rows="5"></textarea>
+            </div>
+            <button type="submit" class="btn btn-outline-dark">Create</button>
+        </form>
+    </div>
+</div>
 {{end}}

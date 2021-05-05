@@ -62,6 +62,7 @@ func main() {
 	// tmplMap["login.html"] = template.Must(template.ParseFiles("static/login.html", "static/base.html"))
 	tmplMap["authForm.html"] = template.Must(template.ParseFiles("static/authForm.html", "static/base.html"))
 	tmplMap["contests.html"] = template.Must(template.ParseFiles("static/contests.html", "static/base.html"))
+	tmplMap["createContest.html"] = template.Must(template.ParseFiles("static/createContest.html", "static/base.html"))
 	// tmplMap["index.html"] = template.Must(template.ParseFiles("static/index.html", "static/base.html"))
 
 	
@@ -80,6 +81,7 @@ func main() {
 	}).Methods("GET", "POST")
 
 	router.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		// fmt.Println("LOGOUT HIT")
 		logoutHandler(w, r, store)
 	}).Methods("POST")
 
@@ -100,7 +102,7 @@ func main() {
 		if loginRequiredHandlerMixin(w, r, store) {
 			return
 		}
-		createContestHandler(w, r, store, contestCollection)
+		createContestHandler(w, r, store, tmplMap, contestCollection)
 	}).Methods("GET", "POST")
 
 	fmt.Println("Server running")

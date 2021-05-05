@@ -3,13 +3,15 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net/http"
+	// "fmt"
 	"html/template"
-	"time"
 	"log"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/sessions"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -65,18 +67,20 @@ func loginHandler(
 		isLoggedIn := session.Values["loggedin"]
 		if isLoggedIn != "true" {
 			if r.Method == "POST" {
-				fmt.Println("Login POST called")
+				// fmt.Println("Login POST called")
 				username := r.PostFormValue("username")
 				password := r.PostFormValue("password")
 				if (verifyCredentials(username, password, userCollection)) {
+					userId := getUserId(username, userCollection)
 					session.Values["loggedin"] = "true"
 					session.Values["username"] = username
+					session.Values["userId"] = userId.Hex()
 					session.Save(r, w)
 					http.Redirect(w, r, "/contests", 302)
 					return
 				}
 			}
-			tmplMap["authForm.html"].ExecuteTemplate(w, "base", nil)
+			tmplMap["authForm.html"].ExecuteTemplate(w, "base", loginData)
 			return
 		}
 		http.Redirect(w, r, "/contests", 302)
@@ -91,10 +95,9 @@ func signupHandler(
 	userCollection *mongo.Collection,
 ) {
 	if r.Method == "POST" {
-		fmt.Println("Signup POST called")
+		// fmt.Println("Signup POST called")
 		username := r.PostFormValue("username")
 		password := r.PostFormValue("password")
-		fmt.Printf("%s %s\n", username, password)
 		err := createNewUser(username, password, userCollection)
 		if err != nil {
 			http.Redirect(w, r, "/signup", 302)	
@@ -134,7 +137,7 @@ func loginRequiredHandlerMixin(
 ) bool {
 	if !isLoggedIn(r, s){
 		log.Println("Not authorized for this request")
-		http.Redirect(w, r, "/login", 401)
+		http.Redirect(w, r, "/login", 302)
 		return true
 	}
 	return false
@@ -144,6 +147,15 @@ func loginRequiredHandlerMixin(
 // *******
 // Helpers
 // *******
+
+func getUserId(username string, userCollection *mongo.Collection) primitive.ObjectID {
+	var result User
+	err := userCollection.FindOne(context.TODO(), bson.D{{"username", username}}).Decode(&result)
+	if err != nil {
+		log.Println("User not found")
+	}
+	return result.Id
+}
 
 func isLoggedIn(r *http.Request, s *sessions.CookieStore) bool {
 	session, _ := s.Get(r, "session")
@@ -181,7 +193,7 @@ func createNewUser(username string, password string, userCollection *mongo.Colle
 	if count != 0 {
 		return errors.New("User ID already exists")
 	}
-	newUser := User{username, password}
+	newUser := User{primitive.NewObjectID(), username, password}
 	_, insertErr := userCollection.InsertOne(context.TODO(), newUser)
 	if insertErr != nil {
 		return insertErr

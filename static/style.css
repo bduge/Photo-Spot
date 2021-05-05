@@ -13,6 +13,10 @@ nav {
     background-color: #f9ebff !important;
 }
 
+.wide-form {
+    width: 100%;
+}
+
 /* .no-highlight, .no-highlight:link, .no-highlight:hover, .no-highlight:active {
     color: inherit !important;
     text-decoration: none !important;
