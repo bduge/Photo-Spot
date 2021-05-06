@@ -15,11 +15,11 @@
         <form class="wide-form" action={{.FormUrl}} method="POST">
             <div class="form-group">
                 <label for="usernameInput">Username</label>
-                <input type="text" class="form-control" id="usernameInput" name="username">
+                <input type="text" class="form-control" id="usernameInput" name="username" required>
             </div>
             <div class="form-group">
                 <label for="passwordInput">Password</label>
-                <input type="password" class="form-control" id="passwordInput" name="password">
+                <input type="password" class="form-control" id="passwordInput" name="password" required>
             </div>
             <button type="submit" class="btn btn-outline-dark">{{.ButtonText}}</button>
         </form>

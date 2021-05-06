@@ -1,11 +1,26 @@
 {{define "contestDetailBody"}}
 
-<form action="/contests/{{.Id}}/submit" method="POST">
+{{if .ShowSubmitForm}}
+<form
+    action="/contests/{{.Contest.GetStringId}}/submit"
+    method="POST"
+    enctype="multipart/form-data"
+    class="mt-5"
+>
     <div class="form-group">
-        <label for="img">Submit Entry to this contest. You may only make one submission.</label>
-        <input class="form-control-file" type="file" id="img" name="img" accept="image/*">
+        <label for="imgName">Name your submission</label>
+        <input class="form-control" type="text" id="imgName" name="imgName" required>
     </div>
-    <button type="submit" class="btn btn-dark">Submit</button>
+    <div class="form-group">
+        <label for="img">Entry to this contest. You may only make one submission.</label>
+        <input class="form-control-file" type="file" id="img" name="img" accept="image/*" required>
+    </div>
+    <button type="submit" class="btn btn-dark mt-3">Submit</button>
 </form>
+{{else}}
+<h5 class="mt-5">
+    Sorry, you cannot submit an entry right now. You may only make one entry per contest.
+</h5>
+{{end}}
 
 {{end}}

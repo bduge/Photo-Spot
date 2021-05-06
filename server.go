@@ -45,6 +45,7 @@ func main() {
 	client := getMongoClient()
 	userCollection := client.Database(dbName).Collection("users")
 	contestCollection := client.Database(dbName).Collection("contests")
+	contestEntryCollection := client.Database(dbName).Collection("contestEntries")
 
 	// // Setup cookie store for sessions
 	// // Authentication logic from:
@@ -108,7 +109,7 @@ func main() {
 		}
 		vars := mux.Vars(r)
 		contestId := vars["contestId"]
-		contestDetailHandler(w, r, store, tmplMap, contestCollection, contestId)
+		contestDetailHandler(w, r, store, tmplMap, contestCollection, contestEntryCollection, contestId)
 	}).Methods("GET")
 
 	router.HandleFunc("/contests/{contestId}/submit", func(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +118,7 @@ func main() {
 		}
 		vars := mux.Vars(r)
 		contestId := vars["contestId"]
-		contestPhotoSubmissionHandler(w, r, store, tmplMap, contestCollection, contestId)
+		contestPhotoSubmissionHandler(w, r, store, tmplMap, contestEntryCollection, contestId)
 	}).Methods("POST")
 
 	router.HandleFunc("/create-contest", func(w http.ResponseWriter, r *http.Request) {

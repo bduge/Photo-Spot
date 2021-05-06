@@ -49,13 +49,24 @@ func (c Contest) GetStateString() string {
 	}
 }
 
+func (c Contest) IsOpen() bool {
+	return c.State == OPEN
+}
+
+func (c Contest) IsVoting() bool {
+	return c.State == VOTING
+}
+
+func (c Contest) IsConcluded() bool {
+	return c.State == CONCLUDED
+}
 
 // ContestEntry collection in Mongo
 type ContestEntry struct {
 	Id primitive.ObjectID `bson:"_id"`
-	ContestID string
-	ImagePath string
-	Title string
-	Votes int
-	Owner string
+	ContestID primitive.ObjectID `bson:"contest_id"`
+	ImagePath string `bson:"path"`
+	Name string `bson:"title"`
+	OwnerId primitive.ObjectID `bson:"owner_id"`
+	Votes int `bson:"votes"`
 }

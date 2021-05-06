@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"io/ioutil"
+	"os"
+
 	// "errors"
 	"fmt"
 	"html/template"
@@ -32,8 +35,10 @@ import (
 // 	TimeCreated time.Time
 // }
 
-type ContestData struct {
-	contests []Contest
+type ContestDetailData struct {
+	Contest Contest
+	ShowSubmitForm bool
+	ShowVoteForm bool
 }
 
 func contestIndexHandler(
@@ -74,6 +79,7 @@ func contestDetailHandler(
 	s *sessions.CookieStore,
 	tmplMap map[string]*template.Template,
 	contestCollection *mongo.Collection,
+	contestEntryCollection *mongo.Collection,
 	contestId string,
 ) {
 	var contest Contest
@@ -89,7 +95,100 @@ func contestDetailHandler(
 		http.Redirect(w, r, "/contests", 302)
 		return
 	}
-	tmplMap["contestDetailOpen.html"].ExecuteTemplate(w, "base", contest)
+	session, err := s.Get(r, "session")
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	userId, err := primitive.ObjectIDFromHex(session.Values["userId"].(string))
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	if contest.IsOpen() {
+		temp := canUserEnter(userId, contestObjId, contestEntryCollection)
+		fmt.Println(temp)
+		tmplMap["contestDetailOpen.html"].ExecuteTemplate(w, "base", ContestDetailData{
+			Contest: contest,
+			ShowSubmitForm: temp,
+		})
+	}
+	
+}
+
+func contestPhotoSubmissionHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+	s *sessions.CookieStore,
+	tmplMap map[string]*template.Template,
+	contestEntryCollection *mongo.Collection,
+	contestId string,
+) {
+	session, err := s.Get(r, "session")
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	entryOwnerId, err := primitive.ObjectIDFromHex(session.Values["userId"].(string))
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests/", 302)
+		return
+	}
+	contestObjId, err := primitive.ObjectIDFromHex(contestId)
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests/", 302)
+		return
+	}
+
+	// Max file size of 10 MB
+	r.ParseMultipartForm(10 << 20)
+	uploadedFile, handler, err := r.FormFile("img")
+	if err != nil {
+		log.Println("Couldn't fetch file")
+		http.Redirect(w, r, "/contests/" + contestId, 302)
+		return
+	}
+	defer uploadedFile.Close()
+
+	entryId := primitive.NewObjectID()
+	entryName := r.PostFormValue("imgName")
+	imagePath := "uploadedImages/" + entryId.Hex() + handler.Filename
+	newFile, err := os.Create(imagePath)
+	if err != nil {
+		log.Printf("Issue saving file %v\n", err)
+		http.Redirect(w, r, "/contests/" + contestId, 302)
+		return
+	}
+
+	fileBytes, err := ioutil.ReadAll(uploadedFile)
+	if err != nil {
+		log.Println("Couldn't read file")
+		http.Redirect(w, r, "/contests/" + contestId, 302)
+		return
+	}
+	newFile.Write(fileBytes)
+	
+	newEntry := ContestEntry{
+		entryId,
+		contestObjId,
+		imagePath,
+		entryName,
+		entryOwnerId,
+		0,
+	}
+	_, insertErr := contestEntryCollection.InsertOne(context.TODO(), newEntry)
+	if insertErr != nil {
+		log.Println(insertErr)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	http.Redirect(w, r, "/contests/" + contestId, 302)
+	return
 }
 
 func createContestHandler(
@@ -126,11 +225,31 @@ func createContestHandler(
 			http.Redirect(w, r, "/contests", 302)
 			return
 		}
-		http.Redirect(w, r, fmt.Sprintf("/contests/%s", insertResult.InsertedID.(primitive.ObjectID).Hex()), 302)
+		http.Redirect(w, r, "/contests/" + insertResult.InsertedID.(primitive.ObjectID).Hex(), 302)
 		return
 	} else {
 		tmplMap["createContest.html"].ExecuteTemplate(w, "base", nil)
 		return
 	}
 	
+}
+
+
+// Helpers
+
+func canUserEnter(
+	userId primitive.ObjectID,
+	contestId primitive.ObjectID,
+	contestEntryCollection *mongo.Collection,
+) bool {
+	entryCount, countErr := contestEntryCollection.CountDocuments(
+		context.TODO(),
+		bson.D{{"contest_id", contestId}, {"owner_id", userId}},
+	)
+	if countErr != nil {
+		log.Println(countErr)
+		return false
+	}
+	fmt.Println(entryCount, userId, contestId)
+	return entryCount == 0
 }
