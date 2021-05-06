@@ -14,15 +14,17 @@
     </div>
 </nav>
 
-<div class="background d-flex flex-column align-items-center">
-    <h1>{{.Contest.Name}}</h3>
-    <h3 class="contest-state-text">{{.Contest.GetStateString}}</h3>
-    <h3>
-        <span>{{.Contest.FormatTime}}</span>
-        -
-        <span>{{.Contest.OwnerName}}</span>
-    </h3>
-    <h5>{{.Contest.Description}}</h5>
-    {{template "contestDetailBody" .}}
+<div class="background">
+    <div class="container d-flex flex-column align-items-center">
+        <h1>{{.Contest.Name}}</h3>
+        <h3 class="contest-state-text">{{.Contest.GetStateString}}</h3>
+        <h3>
+            <span>{{.Contest.FormatTime}}</span>
+            -
+            <span>{{.Contest.OwnerName}}</span>
+        </h3>
+        <h5>{{.Contest.Description}}</h5>
+        {{template "contestDetailBody" .}}
+    </div>
 </div>
 {{end}}

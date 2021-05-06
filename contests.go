@@ -4,43 +4,27 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-
 	// "errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"time"
-
 	"github.com/gorilla/sessions"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	// "go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// type ContestEntry struct {
-// 	ContestId string
-// 	ImagePath string
-// 	Title string
-// 	Votes int
-// 	OwnerId string
-// }
-// type Contest struct {
-// 	Name string
-// 	State int
-// 	Description string
-// 	Owner string
-// 	TimeCreated time.Time
-// }
-
+// Struct to hold data for rendering contest detail view
 type ContestDetailData struct {
 	Contest Contest
 	ShowSubmitForm bool
 	ShowVoteForm bool
 }
 
+// Handler for /contests endpoint
 func contestIndexHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -48,13 +32,13 @@ func contestIndexHandler(
 	tmplMap map[string]*template.Template,
 	contestCollection *mongo.Collection,
 ) {
+	// Fetch all contests
+	// TODO: Create option to filter contests by state, name, etc
 	var contests []*Contest
-
 	cursor, err := contestCollection.Find(context.TODO(), bson.D{})
 	if err != nil {
 		log.Println("Couldn't find contests")
 	}
-
 	for cursor.Next(context.TODO()) {
 		var curContest Contest
 		err := cursor.Decode(&curContest)
@@ -63,7 +47,6 @@ func contestIndexHandler(
 		}
 		contests = append(contests, &curContest)
 	}
-
 	if err := cursor.Err(); err != nil {
 		log.Println(err)
 	}
@@ -73,6 +56,7 @@ func contestIndexHandler(
 	tmplMap["contests.html"].ExecuteTemplate(w, "base", contests)
 }
 
+// handler to render contest detail page
 func contestDetailHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -82,6 +66,7 @@ func contestDetailHandler(
 	contestEntryCollection *mongo.Collection,
 	contestId string,
 ) {
+	// fetch necessary data
 	var contest Contest
 	contestObjId, idErr := primitive.ObjectIDFromHex(contestId)
 	if idErr != nil {
@@ -108,16 +93,16 @@ func contestDetailHandler(
 		return
 	}
 	if contest.IsOpen() {
-		temp := canUserEnter(userId, contestObjId, contestEntryCollection)
-		fmt.Println(temp)
+		// Logic for open contest
 		tmplMap["contestDetailOpen.html"].ExecuteTemplate(w, "base", ContestDetailData{
 			Contest: contest,
-			ShowSubmitForm: temp,
+			ShowSubmitForm: canUserEnter(userId, contestObjId, contestEntryCollection),
 		})
 	}
 	
 }
 
+// Handler for contest submission endpoint
 func contestPhotoSubmissionHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -126,6 +111,7 @@ func contestPhotoSubmissionHandler(
 	contestEntryCollection *mongo.Collection,
 	contestId string,
 ) {
+	// Get data and format IDs
 	session, err := s.Get(r, "session")
 	if err != nil {
 		log.Println(err)
@@ -145,7 +131,15 @@ func contestPhotoSubmissionHandler(
 		return
 	}
 
-	// Max file size of 10 MB
+	// Check if user is allowed to make submission
+	if !canUserEnter(entryOwnerId, contestObjId, contestEntryCollection) {
+		log.Println("User doesn't have permission to enter contest")
+		http.Redirect(w, r, "/contests/" + contestId, 302)
+		return
+	}
+
+	// Fetch image from form
+	// Max image size of 10 MB
 	r.ParseMultipartForm(10 << 20)
 	uploadedFile, handler, err := r.FormFile("img")
 	if err != nil {
@@ -155,6 +149,7 @@ func contestPhotoSubmissionHandler(
 	}
 	defer uploadedFile.Close()
 
+	// Create new file on server to store image
 	entryId := primitive.NewObjectID()
 	entryName := r.PostFormValue("imgName")
 	imagePath := "uploadedImages/" + entryId.Hex() + handler.Filename
@@ -165,6 +160,7 @@ func contestPhotoSubmissionHandler(
 		return
 	}
 
+	// Write data to new file
 	fileBytes, err := ioutil.ReadAll(uploadedFile)
 	if err != nil {
 		log.Println("Couldn't read file")
@@ -173,6 +169,7 @@ func contestPhotoSubmissionHandler(
 	}
 	newFile.Write(fileBytes)
 	
+	// Save entry in database
 	newEntry := ContestEntry{
 		entryId,
 		contestObjId,
@@ -191,6 +188,7 @@ func contestPhotoSubmissionHandler(
 	return
 }
 
+// Handler to create new contest
 func createContestHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -205,11 +203,14 @@ func createContestHandler(
 			http.Redirect(w, r, "/contests", 302)
 			return
 		}
+		// Fetch data from form and current session
 		contestName := r.PostFormValue("contestname")
 		contestDescription := r.PostFormValue("contestdescription")
 		contestOwnerId := session.Values["userId"].(string)
 		contestOwnerName := session.Values["username"].(string)
 		currentTime := time.Now()
+
+		// Create contest and save in database
 		newContest := Contest{
 			primitive.NewObjectID(),
 			contestName,
@@ -228,15 +229,18 @@ func createContestHandler(
 		http.Redirect(w, r, "/contests/" + insertResult.InsertedID.(primitive.ObjectID).Hex(), 302)
 		return
 	} else {
+		// Render create contest form
 		tmplMap["createContest.html"].ExecuteTemplate(w, "base", nil)
 		return
 	}
 	
 }
 
-
+// *******
 // Helpers
+// *******
 
+// Helper to check if user is able to make submission to contest
 func canUserEnter(
 	userId primitive.ObjectID,
 	contestId primitive.ObjectID,

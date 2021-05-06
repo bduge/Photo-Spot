@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-
 	"github.com/gorilla/sessions"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,6 +31,7 @@ type AuthFormData struct {
 // Handlers
 // ********
 
+// Handler for /logout endpoint
 func logoutHandler(w http.ResponseWriter, r *http.Request, s *sessions.CookieStore) {
     session, err := s.Get(r, "session")
     if err == nil { //If there is no error, then remove session
@@ -40,10 +40,12 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, s *sessions.CookieSto
 			session.Save(r, w)
 		}
     }
+    //redirect to login regardless of an error
     http.Redirect(w, r, "/login", 302) 
-    //redirect to login irrespective of error or not
 }
 
+
+// Handler for /login endpoint
 func loginHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -60,16 +62,15 @@ func loginHandler(
 		"Create an Account",
 	}
     if err != nil {
+		// in case of error during fetching session info, show login page
 		tmplMap["authForm.html"].ExecuteTemplate(w, "base", loginData) 
-		// in case of error during 
-		// fetching session info, execute login template
     } else {
 		isLoggedIn := session.Values["loggedin"]
 		if isLoggedIn != "true" {
 			if r.Method == "POST" {
-				// fmt.Println("Login POST called")
 				username := r.PostFormValue("username")
 				password := r.PostFormValue("password")
+				// Attempt to log user in
 				if (verifyCredentials(username, password, userCollection)) {
 					userId := getUserId(username, userCollection)
 					session.Values["loggedin"] = "true"
@@ -83,10 +84,12 @@ func loginHandler(
 			tmplMap["authForm.html"].ExecuteTemplate(w, "base", loginData)
 			return
 		}
+		// Redirect to contests page if logged in
 		http.Redirect(w, r, "/contests", 302)
     }
 }
 
+// Handler for /signup endpoint
 func signupHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -95,18 +98,20 @@ func signupHandler(
 	userCollection *mongo.Collection,
 ) {
 	if r.Method == "POST" {
-		// fmt.Println("Signup POST called")
+		// Attemp to create user
 		username := r.PostFormValue("username")
 		password := r.PostFormValue("password")
 		err := createNewUser(username, password, userCollection)
 		if err != nil {
+			// Redirect back to sign up page user cannot be created
 			http.Redirect(w, r, "/signup", 302)	
 			return
 		}
-		
+		// Redirect to login page if successful
 		http.Redirect(w, r, "/login", 302)
 		return
 	} else {
+		// Display sign up page for GET request
 		signupData := AuthFormData{
 			"Create an Account",
 			"/signup",
@@ -119,6 +124,7 @@ func signupHandler(
 	}
 }
 
+// Handler for /home endpoint
 func homeHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -130,6 +136,7 @@ func homeHandler(
 	http.Redirect(w, r, "/", 302)
 }
 
+// Helper for login required endpoints
 func loginRequiredHandlerMixin(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -148,6 +155,7 @@ func loginRequiredHandlerMixin(
 // Helpers
 // *******
 
+// Return userId as a Mongo ObjectId
 func getUserId(username string, userCollection *mongo.Collection) primitive.ObjectID {
 	var result User
 	err := userCollection.FindOne(context.TODO(), bson.D{{"username", username}}).Decode(&result)
@@ -157,6 +165,7 @@ func getUserId(username string, userCollection *mongo.Collection) primitive.Obje
 	return result.Id
 }
 
+// Return if user is logged in
 func isLoggedIn(r *http.Request, s *sessions.CookieStore) bool {
 	session, _ := s.Get(r, "session")
 	if session.Values["loggedin"] == "true" {
@@ -165,6 +174,7 @@ func isLoggedIn(r *http.Request, s *sessions.CookieStore) bool {
 	return false
 }
 
+// Returns if user credentials are valid
 func verifyCredentials(username string, password string, userCollection *mongo.Collection) bool {
 	var user User
 	if (username == "" || password == "") {
@@ -181,6 +191,7 @@ func verifyCredentials(username string, password string, userCollection *mongo.C
 	return true
 }
 
+// Create new user in database
 func createNewUser(username string, password string, userCollection *mongo.Collection) error {
 	if username == "" || password == "" {
 		return errors.New("Invalid username or password")

@@ -2,7 +2,6 @@ package main
 
 import (
 	"time"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -31,6 +30,7 @@ type Contest struct {
 	TimeCreated time.Time `bson:"time_created"`
 }
 
+// Contest helper methods
 func (c Contest) FormatTime() string {
 	return c.TimeCreated.Format("Jan 2")
 }
