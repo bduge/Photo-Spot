@@ -22,6 +22,8 @@ type ContestDetailData struct {
 	Contest Contest
 	ShowSubmitForm bool
 	ShowVoteForm bool
+	ShowEndSubmission bool
+	ShowEndVoting bool
 }
 
 // Handler for /contests endpoint
@@ -207,6 +209,12 @@ func createContestHandler(
 		contestName := r.PostFormValue("contestname")
 		contestDescription := r.PostFormValue("contestdescription")
 		contestOwnerId := session.Values["userId"].(string)
+		ownerObjId, idErr := primitive.ObjectIDFromHex(contestOwnerId)
+		if idErr != nil {
+			log.Println("User ID not valid")
+			http.Redirect(w, r, "/contests", 302)
+			return
+		}
 		contestOwnerName := session.Values["username"].(string)
 		currentTime := time.Now()
 
@@ -216,7 +224,7 @@ func createContestHandler(
 			contestName,
 			OPEN,
 			contestDescription,
-			contestOwnerId,
+			ownerObjId,
 			contestOwnerName,
 			currentTime,
 		}
@@ -257,3 +265,24 @@ func canUserEnter(
 	fmt.Println(entryCount, userId, contestId)
 	return entryCount == 0
 }
+
+func canEndSubmission(
+	userId primitive.ObjectID,
+	contest Contest,
+) bool {
+	return contest.State == OPEN && contest.OwnerId == userId
+}
+
+func canEndVoting(
+	userId primitive.ObjectID,
+	contest Contest,
+) bool {
+	return contest.State == OPEN && contest.OwnerId == userId
+}
+
+func getNumSubmissions(
+	contestId primitive.ObjectID,
+) int {
+	return 0
+}
+

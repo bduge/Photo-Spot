@@ -25,7 +25,7 @@ type Contest struct {
 	Name string `bson:"name"`
 	State int `bson:"state"`
 	Description string `bson:"description"`
-	OwnerId string `bson:"owner_id"`
+	OwnerId primitive.ObjectID `bson:"owner_id"`
 	OwnerName string `bson:"owner_name"`
 	TimeCreated time.Time `bson:"time_created"`
 }
