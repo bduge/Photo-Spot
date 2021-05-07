@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	// "errors"
-	"fmt"
+	// "fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -16,15 +16,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	// "go.mongodb.org/mongo-driver/mongo/options"
 )
-
-// Struct to hold data for rendering contest detail view
-type ContestDetailData struct {
-	Contest Contest
-	ShowSubmitForm bool
-	ShowVoteForm bool
-	ShowEndSubmission bool
-	ShowEndVoting bool
-}
 
 // Handler for /contests endpoint
 func contestIndexHandler(
@@ -66,6 +57,7 @@ func contestDetailHandler(
 	tmplMap map[string]*template.Template,
 	contestCollection *mongo.Collection,
 	contestEntryCollection *mongo.Collection,
+	contestVoteCollection *mongo.Collection,
 	contestId string,
 ) {
 	// fetch necessary data
@@ -94,11 +86,24 @@ func contestDetailHandler(
 		http.Redirect(w, r, "/contests", 302)
 		return
 	}
+	entryCount := getNumSubmissions(contestObjId, contestEntryCollection)
 	if contest.IsOpen() {
-		// Logic for open contest
+		// View for contest in open state
 		tmplMap["contestDetailOpen.html"].ExecuteTemplate(w, "base", ContestDetailData{
 			Contest: contest,
-			ShowSubmitForm: canUserEnter(userId, contestObjId, contestEntryCollection),
+			ShowSubmitForm: canUserSubmit(userId, contestObjId, contestEntryCollection),
+			EntryCount: entryCount,
+			ShowEndSubmission: canEndSubmission(userId, contest),
+		})
+	} else if contest.IsVoting() {
+		// View for contest in voting state
+		entries := getContestEntries(contestObjId, contestEntryCollection)
+		tmplMap["contestDetailVoting.html"].ExecuteTemplate(w, "base", ContestDetailData{
+			Contest: contest,
+			Entries: entries,
+			ShowVoteForm: canUserVote(userId, contestObjId, contestVoteCollection),
+			EntryCount: entryCount,
+			ShowEndVoting: canEndVoting(userId, contest),
 		})
 	}
 	
@@ -120,6 +125,7 @@ func contestPhotoSubmissionHandler(
 		http.Redirect(w, r, "/contests", 302)
 		return
 	}
+	contestOwnerName := session.Values["username"].(string)
 	entryOwnerId, err := primitive.ObjectIDFromHex(session.Values["userId"].(string))
 	if err != nil {
 		log.Println(err)
@@ -134,7 +140,7 @@ func contestPhotoSubmissionHandler(
 	}
 
 	// Check if user is allowed to make submission
-	if !canUserEnter(entryOwnerId, contestObjId, contestEntryCollection) {
+	if !canUserSubmit(entryOwnerId, contestObjId, contestEntryCollection) {
 		log.Println("User doesn't have permission to enter contest")
 		http.Redirect(w, r, "/contests/" + contestId, 302)
 		return
@@ -154,7 +160,7 @@ func contestPhotoSubmissionHandler(
 	// Create new file on server to store image
 	entryId := primitive.NewObjectID()
 	entryName := r.PostFormValue("imgName")
-	imagePath := "uploadedImages/" + entryId.Hex() + handler.Filename
+	imagePath := "/uploadedImages/" + entryId.Hex() + handler.Filename
 	newFile, err := os.Create(imagePath)
 	if err != nil {
 		log.Printf("Issue saving file %v\n", err)
@@ -178,7 +184,7 @@ func contestPhotoSubmissionHandler(
 		imagePath,
 		entryName,
 		entryOwnerId,
-		0,
+		contestOwnerName,
 	}
 	_, insertErr := contestEntryCollection.InsertOne(context.TODO(), newEntry)
 	if insertErr != nil {
@@ -241,7 +247,31 @@ func createContestHandler(
 		tmplMap["createContest.html"].ExecuteTemplate(w, "base", nil)
 		return
 	}
-	
+}
+
+func startContestVoteHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+	s *sessions.CookieStore,
+	contestCollection *mongo.Collection,
+	contestId string,
+) {
+	contestObjId, err := primitive.ObjectIDFromHex(contestId)
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests/" + contestId, 302)
+		return
+	}
+	update := bson.D{{"$set", bson.D{{"state", VOTING}}}}
+	_, updateErr := contestCollection.UpdateOne(
+		context.TODO(),
+		bson.D{{"_id", contestObjId}},
+		update,
+	)
+	if updateErr != nil {
+		log.Println(err)
+	}
+	http.Redirect(w, r, "/contests/" + contestId, 302)
 }
 
 // *******
@@ -249,7 +279,7 @@ func createContestHandler(
 // *******
 
 // Helper to check if user is able to make submission to contest
-func canUserEnter(
+func canUserSubmit(
 	userId primitive.ObjectID,
 	contestId primitive.ObjectID,
 	contestEntryCollection *mongo.Collection,
@@ -262,8 +292,15 @@ func canUserEnter(
 		log.Println(countErr)
 		return false
 	}
-	fmt.Println(entryCount, userId, contestId)
 	return entryCount == 0
+}
+
+func canUserVote(
+	userId primitive.ObjectID,
+	contestId primitive.ObjectID,
+	contestVoteCollection *mongo.Collection,
+) bool {
+	return true
 }
 
 func canEndSubmission(
@@ -282,7 +319,40 @@ func canEndVoting(
 
 func getNumSubmissions(
 	contestId primitive.ObjectID,
-) int {
-	return 0
+	contestEntryCollection *mongo.Collection,
+) int64 {
+	entryCount, countErr := contestEntryCollection.CountDocuments(
+		context.TODO(),
+		bson.D{{"contest_id", contestId}},
+	)
+	if countErr != nil {
+		log.Println(countErr)
+		return -1
+	}
+	return entryCount
+}
+
+func getContestEntries(
+	contestId primitive.ObjectID,
+	contestEntryCollection *mongo.Collection,
+) []ContestEntry {
+	var entries []ContestEntry
+	cursor, err := contestEntryCollection.Find(context.TODO(), bson.D{{"contest_id", contestId}})
+	if err != nil {
+		log.Println("Couldn't find contests")
+	}
+	for cursor.Next(context.TODO()) {
+		var curEntry ContestEntry
+		err := cursor.Decode(&curEntry)
+		if err != nil {
+			log.Println("Couldn't get contest")
+		}
+		entries = append(entries, curEntry)
+	}
+	if err := cursor.Err(); err != nil {
+		log.Println(err)
+	}
+	cursor.Close(context.TODO())
+	return entries
 }
 

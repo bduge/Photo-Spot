@@ -1,0 +1,30 @@
+{{define "contestDetailBody"}}
+
+{{if .ShowVoteForm}}
+<form
+    action="/contests/{{.Contest.GetStringId}}/vote"
+    method="POST"
+    class="mt-5 wide-form d-flex flex-column align-items-center"
+>
+    <h5>Vote in this contest now!</h5>
+    
+    <div class="container">
+        <div class="row row-cols-3">
+            {{range .Entries}}
+            <div class="form-check col d-flex flex-column align-items-center">
+                <label for="{{.GetStringId}}"></label><h6>{{.Name}} - {{.OwnerName}}</h6></label>
+                <img src={{.ImagePath}} alt={{.Name}}>
+                <input type="radio" id={{.GetStringId}} name="imgName" value={{.GetStringId}}>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    <button type="submit" class="btn btn-dark mt-3">Submit</button>
+</form>
+{{else}}
+<h5 class="mt-5">
+    Sorry, you cannot vote right now. You may only vote once.
+</h5>
+{{end}}
+
+{{end}}

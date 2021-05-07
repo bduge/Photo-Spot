@@ -40,6 +40,7 @@ func main() {
 	userCollection := client.Database(dbName).Collection("users")
 	contestCollection := client.Database(dbName).Collection("contests")
 	contestEntryCollection := client.Database(dbName).Collection("contestEntries")
+	contestVoteCollection := client.Database(dbName).Collection("contestVotes")
 
 	// Setup cookie store for sessions
 	// Authentication logic from:
@@ -47,9 +48,11 @@ func main() {
 	store := sessions.NewCookieStore([]byte(secretKey))
 
 	// Serve static files
-	fs := http.FileServer(http.Dir("static/"))
+	staticFs := http.FileServer(http.Dir("static/"))
+	imageFs := http.FileServer(http.Dir("uploadedImages/"))
 	router := mux.NewRouter()
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", staticFs))
+	router.PathPrefix("/uploadedImages/").Handler(http.StripPrefix("/uploadedImages/", imageFs))
 
 	// Initialize templates
 	tmplMap := make(map[string]*template.Template)
@@ -59,6 +62,11 @@ func main() {
 	tmplMap["createContest.html"] = template.Must(template.ParseFiles("static/createContest.html", "static/base.html"))
 	tmplMap["contestDetailOpen.html"] = template.Must(template.ParseFiles(
 		"static/contestDetailOpen.html",
+		"static/contestDetail.html",
+		"static/base.html",
+	))
+	tmplMap["contestDetailVoting.html"] = template.Must(template.ParseFiles(
+		"static/contestDetailVoting.html",
 		"static/contestDetail.html",
 		"static/base.html",
 	))
@@ -100,7 +108,14 @@ func main() {
 		}
 		vars := mux.Vars(r)
 		contestId := vars["contestId"]
-		contestDetailHandler(w, r, store, tmplMap, contestCollection, contestEntryCollection, contestId)
+		contestDetailHandler(
+			w, r, store, 
+			tmplMap,
+			contestCollection,
+			contestEntryCollection,
+			contestVoteCollection,
+			contestId,
+		)
 	}).Methods("GET")
 
 	router.HandleFunc("/contests/{contestId}/submit", func(w http.ResponseWriter, r *http.Request) {
@@ -117,6 +132,15 @@ func main() {
 			return
 		}
 		createContestHandler(w, r, store, tmplMap, contestCollection)
+	}).Methods("GET", "POST")
+
+	router.HandleFunc("/contest/{contestId}/start-vote", func(w http.ResponseWriter, r *http.Request) {
+		if loginRequiredHandlerMixin(w, r, store) {
+			return
+		}
+		vars := mux.Vars(r)
+		contestId := vars["contestId"]
+		startContestVoteHandler(w, r, store, contestCollection, contestId)
 	}).Methods("GET", "POST")
 
 	// Start server

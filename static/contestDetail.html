@@ -23,7 +23,22 @@
             -
             <span>{{.Contest.OwnerName}}</span>
         </h3>
+        <h3>
+            <span>{{.EntryCount}}</span>
+            {{if eq .EntryCount 1}}
+            <span>Entry</span>
+            {{else}}
+            <span>Entries</span>
+            {{end}}
         <h5>{{.Contest.Description}}</h5>
+        {{if .ShowEndSubmission}}
+        <form class="mt-1" action="/contest/{{.Contest.GetStringId}}/start-vote" method="POST">
+            <div class="d-flex flex-column align-items-center">
+                <button type="submit" class="btn btn-outline-success">Start Voting</button>
+                <p class="mt-1">(This will prevent additional submissions to this photo contest)</p>
+            </div>
+        </form>
+        {{end}}
         {{template "contestDetailBody" .}}
     </div>
 </div>

@@ -68,5 +68,20 @@ type ContestEntry struct {
 	ImagePath string `bson:"path"`
 	Name string `bson:"title"`
 	OwnerId primitive.ObjectID `bson:"owner_id"`
-	Votes int `bson:"votes"`
+	OwnerName string `bson:"owner_name"`
+}
+
+func (c ContestEntry) GetStringId() string {
+	return c.Id.Hex()
+}
+
+// Struct to hold data for rendering contest detail view
+type ContestDetailData struct {
+	Contest Contest
+	ShowSubmitForm bool
+	ShowVoteForm bool
+	ShowEndSubmission bool
+	ShowEndVoting bool
+	EntryCount int64
+	Entries []ContestEntry
 }
