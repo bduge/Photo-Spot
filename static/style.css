@@ -10,9 +10,21 @@ nav {
     padding-bottom: 10px;
 }
 
+span {
+    
+}
+
 .background {
     min-height: 100vh;
     background-color: #f9ebff !important;
+}
+
+.prevent-overflow {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    display: inline-block;
 }
 
 .wide-form {

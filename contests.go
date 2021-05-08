@@ -160,7 +160,7 @@ func contestPhotoSubmissionHandler(
 	// Create new file on server to store image
 	entryId := primitive.NewObjectID()
 	entryName := r.PostFormValue("imgName")
-	imagePath := "/uploadedImages/" + entryId.Hex() + handler.Filename
+	imagePath := "uploadedImages/" + entryId.Hex() + handler.Filename
 	newFile, err := os.Create(imagePath)
 	if err != nil {
 		log.Printf("Issue saving file %v\n", err)
@@ -181,7 +181,7 @@ func contestPhotoSubmissionHandler(
 	newEntry := ContestEntry{
 		entryId,
 		contestObjId,
-		imagePath,
+		"/" + imagePath,
 		entryName,
 		entryOwnerId,
 		contestOwnerName,
