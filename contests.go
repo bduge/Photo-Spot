@@ -249,6 +249,8 @@ func createContestHandler(
 	}
 }
 
+// Handler for request to start contest voting period
+// TODO: VERIFY CONTEST CAN START VOTING
 func startContestVoteHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -259,7 +261,7 @@ func startContestVoteHandler(
 	contestObjId, err := primitive.ObjectIDFromHex(contestId)
 	if err != nil {
 		log.Println(err)
-		http.Redirect(w, r, "/contests/" + contestId, 302)
+		http.Redirect(w, r, "/contests", 302)
 		return
 	}
 	update := bson.D{{"$set", bson.D{{"state", VOTING}}}}
@@ -272,6 +274,75 @@ func startContestVoteHandler(
 		log.Println(err)
 	}
 	http.Redirect(w, r, "/contests/" + contestId, 302)
+}
+
+func contestVoteHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+	s *sessions.CookieStore,
+	contestCollection *mongo.Collection,
+	contestVoteCollection *mongo.Collection,
+	contestEntryCollection *mongo.Collection,
+	contestId string,
+) {
+	session, err := s.Get(r, "session")
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	// Verify contestEntry exists and can be voted on
+	imageVote := r.PostFormValue("image-vote")
+	entryId, err := primitive.ObjectIDFromHex(imageVote)
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	contestObjId, err := primitive.ObjectIDFromHex(contestId)
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	entryCount, countErr := contestEntryCollection.CountDocuments(
+		context.TODO(),
+		bson.D{{"_id", entryId}, {"contest_id", contestObjId}},
+	)
+	if countErr != nil {
+		log.Println(countErr)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	if entryCount != 1 {
+		log.Println("Request not valid")
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	
+	// Validate current user
+	voterId, err := primitive.ObjectIDFromHex(session.Values["userId"].(string))
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/contests/", 302)
+		return
+	}
+
+	// Create vote object and store
+	newContestVote := ContestVote{
+		primitive.NewObjectID(),
+		contestObjId,
+		entryId,
+		voterId,
+	}
+	_, insertErr := contestVoteCollection.InsertOne(context.TODO(), newContestVote)
+	if insertErr != nil {
+		log.Println(insertErr)
+		http.Redirect(w, r, "/contests", 302)
+		return
+	}
+	http.Redirect(w, r, "/contests/" + contestId, 302)
+	return
 }
 
 // *******
@@ -300,9 +371,18 @@ func canUserVote(
 	contestId primitive.ObjectID,
 	contestVoteCollection *mongo.Collection,
 ) bool {
-	return true
+	entryCount, countErr := contestVoteCollection.CountDocuments(
+		context.TODO(),
+		bson.D{{"contest_id", contestId}, {"user_id", userId}},
+	)
+	if countErr != nil {
+		log.Println(countErr)
+		return false
+	}
+	return entryCount == 0
 }
 
+// Check if current user can end submission period
 func canEndSubmission(
 	userId primitive.ObjectID,
 	contest Contest,
@@ -310,6 +390,7 @@ func canEndSubmission(
 	return contest.State == OPEN && contest.OwnerId == userId
 }
 
+// Checks if current user can end voting period
 func canEndVoting(
 	userId primitive.ObjectID,
 	contest Contest,
@@ -317,6 +398,7 @@ func canEndVoting(
 	return contest.State == OPEN && contest.OwnerId == userId
 }
 
+// Get the number of submissions to a contest
 func getNumSubmissions(
 	contestId primitive.ObjectID,
 	contestEntryCollection *mongo.Collection,
@@ -332,16 +414,19 @@ func getNumSubmissions(
 	return entryCount
 }
 
+// Get the entries submitted to a contest
 func getContestEntries(
 	contestId primitive.ObjectID,
 	contestEntryCollection *mongo.Collection,
 ) []ContestEntry {
 	var entries []ContestEntry
+	// Fetch entries into cursor
 	cursor, err := contestEntryCollection.Find(context.TODO(), bson.D{{"contest_id", contestId}})
 	if err != nil {
 		log.Println("Couldn't find contests")
 	}
 	for cursor.Next(context.TODO()) {
+		// For each entry, add to array (slice)
 		var curEntry ContestEntry
 		err := cursor.Decode(&curEntry)
 		if err != nil {

@@ -134,14 +134,29 @@ func main() {
 		createContestHandler(w, r, store, tmplMap, contestCollection)
 	}).Methods("GET", "POST")
 
-	router.HandleFunc("/contest/{contestId}/start-vote", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/contests/{contestId}/start-vote", func(w http.ResponseWriter, r *http.Request) {
 		if loginRequiredHandlerMixin(w, r, store) {
 			return
 		}
 		vars := mux.Vars(r)
 		contestId := vars["contestId"]
 		startContestVoteHandler(w, r, store, contestCollection, contestId)
-	}).Methods("GET", "POST")
+	}).Methods("POST")
+
+	router.HandleFunc("/contests/{contestId}/vote", func(w http.ResponseWriter, r *http.Request) {
+		if loginRequiredHandlerMixin(w, r, store) {
+			return
+		}
+		vars := mux.Vars(r)
+		contestId := vars["contestId"]
+		contestVoteHandler(
+			w, r, store,
+			contestCollection,
+			contestVoteCollection,
+			contestEntryCollection,
+			contestId,
+		)
+	}).Methods("POST")
 
 	// Start server
 	fmt.Println("Server running")

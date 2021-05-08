@@ -75,6 +75,13 @@ func (c ContestEntry) GetStringId() string {
 	return c.Id.Hex()
 }
 
+type ContestVote struct {
+	Id primitive.ObjectID `bson:"_id"`
+	ContestID primitive.ObjectID `bson:"contest_id"`
+	EntryID primitive.ObjectID `bson:"entry_id"`
+	UserID primitive.ObjectID `bson:"user_id"`
+}
+
 // Struct to hold data for rendering contest detail view
 type ContestDetailData struct {
 	Contest Contest

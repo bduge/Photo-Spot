@@ -7,7 +7,7 @@
     class="my-5 wide-form"
 >
     <div class="container d-flex flex-column align-items-center">
-        <h5>Vote in this contest now!</h5>
+        <h5>Vote for your favourite submission now!</h5>
         <div class="row row-cols-3">
             {{range .Entries}}
             <div class="col d-flex flex-column justify-content-between align-items-center my-4">
@@ -26,11 +26,11 @@
                     </h6>
                 </label>
                 <img class="img-fluid my-2" src={{.ImagePath}} alt={{.Name}}>
-                <input type="radio" id={{.GetStringId}} name="imgName" value={{.GetStringId}}>
+                <input type="radio" id={{.GetStringId}} name="image-vote" value={{.GetStringId}}>
             </div>
             {{end}}
         </div>
-        <button type="submit" class="btn btn-dark mt-3">Submit</button>
+        <button type="submit" class="btn btn-dark mt-3">Vote</button>
     </div>
 </form>
 {{else}}
