@@ -70,6 +70,11 @@ func main() {
 		"static/contestDetail.html",
 		"static/base.html",
 	))
+	tmplMap["contestDetailConcluded.html"] = template.Must(template.ParseFiles(
+		"static/contestDetailConcluded.html",
+		"static/contestDetail.html",
+		"static/base.html",
+	))
 
 	// Index route
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +145,16 @@ func main() {
 		}
 		vars := mux.Vars(r)
 		contestId := vars["contestId"]
-		startContestVoteHandler(w, r, store, contestCollection, contestId)
+		contestChangeStateHandler(w, r, store, contestCollection, contestId, VOTING)
+	}).Methods("POST")
+
+	router.HandleFunc("/contests/{contestId}/stop-vote", func(w http.ResponseWriter, r *http.Request) {
+		if loginRequiredHandlerMixin(w, r, store) {
+			return
+		}
+		vars := mux.Vars(r)
+		contestId := vars["contestId"]
+		contestChangeStateHandler(w, r, store, contestCollection, contestId, CONCLUDED)
 	}).Methods("POST")
 
 	router.HandleFunc("/contests/{contestId}/vote", func(w http.ResponseWriter, r *http.Request) {

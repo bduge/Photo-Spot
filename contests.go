@@ -4,17 +4,18 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+
 	// "errors"
 	// "fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"time"
+
 	"github.com/gorilla/sessions"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	// "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Handler for /contests endpoint
@@ -105,8 +106,15 @@ func contestDetailHandler(
 			EntryCount: entryCount,
 			ShowEndVoting: canEndVoting(userId, contest),
 		})
+	} else {
+		// View for concluded contest
+		winners := getContestWinners(contestObjId, contestEntryCollection, contestVoteCollection)
+		tmplMap["contestDetailConcluded.html"].ExecuteTemplate(w, "base", ContestDetailData{
+			Contest: contest,
+			Entries: winners,
+			EntryCount: entryCount,
+		})
 	}
-	
 }
 
 // Handler for contest submission endpoint
@@ -251,12 +259,13 @@ func createContestHandler(
 
 // Handler for request to start contest voting period
 // TODO: VERIFY CONTEST CAN START VOTING
-func startContestVoteHandler(
+func contestChangeStateHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 	s *sessions.CookieStore,
 	contestCollection *mongo.Collection,
 	contestId string,
+	state int,
 ) {
 	contestObjId, err := primitive.ObjectIDFromHex(contestId)
 	if err != nil {
@@ -264,7 +273,7 @@ func startContestVoteHandler(
 		http.Redirect(w, r, "/contests", 302)
 		return
 	}
-	update := bson.D{{"$set", bson.D{{"state", VOTING}}}}
+	update := bson.D{{"$set", bson.D{{"state", state}}}}
 	_, updateErr := contestCollection.UpdateOne(
 		context.TODO(),
 		bson.D{{"_id", contestObjId}},
@@ -395,7 +404,7 @@ func canEndVoting(
 	userId primitive.ObjectID,
 	contest Contest,
 ) bool {
-	return contest.State == OPEN && contest.OwnerId == userId
+	return contest.State == VOTING && contest.OwnerId == userId
 }
 
 // Get the number of submissions to a contest
@@ -439,5 +448,34 @@ func getContestEntries(
 	}
 	cursor.Close(context.TODO())
 	return entries
+}
+
+// getContestWinners(contestObjId, contestEntryCollection, contestVoteCollection)
+func getContestWinners(
+	contestId primitive.ObjectID,
+	contestEntryCollection *mongo.Collection,
+	contestVoteCollection *mongo.Collection,
+) []ContestEntry {
+	var winners []ContestEntry
+	entries := getContestEntries(contestId, contestEntryCollection)
+	maxVotes := 0
+
+	for _, entry := range entries {
+		votes, err := contestVoteCollection.CountDocuments(
+			context.TODO(),
+			bson.D{{"contest_id", contestId}, {"entry_id", entry.Id}},
+		)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		if votes > int64(maxVotes) {
+			maxVotes = int(votes)
+			winners = []ContestEntry{entry}
+		} else if votes == int64(maxVotes) {
+			winners = append(winners, entry)
+		}
+	}
+	return winners;
 }
 
