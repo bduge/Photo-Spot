@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	// "fmt"
 	"html/template"
 	"log"
 	"net/http"
