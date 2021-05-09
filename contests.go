@@ -94,7 +94,7 @@ func contestDetailHandler(
 			Contest: contest,
 			ShowSubmitForm: canUserSubmit(userId, contestObjId, contestEntryCollection),
 			EntryCount: entryCount,
-			ShowEndSubmission: canEndSubmission(userId, contest),
+			ShowEndSubmission: canEndSubmission(userId, contest) && entryCount > 0,
 		})
 	} else if contest.IsVoting() {
 		// View for contest in voting state

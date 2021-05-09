@@ -42,5 +42,5 @@ Given that this project was created for the Shopify backend developer challenge 
 - Add a user page which displays their previously submitted images and any contests they've won
 - Add private contests for friends or communities
 - Allow other media formats (i.e. Videos, GIFS, etc)
-- Polish user interface
+- Polish user interface + make responsive for mobile devices
 - If publishing to production, implement security features like encrypting password encryption, secure password requirements, and verifying API requests

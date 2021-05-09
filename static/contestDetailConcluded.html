@@ -1,9 +1,9 @@
 {{define "contestDetailBody"}}
 
-<div class="container d-flex flex-column align-items-center">
-    <h5>Winner of this Contest!</h5>
+<div class="container d-flex flex-column align-items-center mt-4">
+    <h2 class="mb-2">Winner of this Contest!</h2>
     {{range .Entries}}
-    <div class="col d-flex flex-column align-items-center my-4">
+    <div class="col d-flex flex-column align-items-center mb-5">
         <h3>{{.Name}}</h3>
         <h3>Submitted By: {{.OwnerName}}</h3>
         <img class="img-fluid" src={{.ImagePath}} alt={{.Name}}>
